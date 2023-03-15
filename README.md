@@ -8,3 +8,5 @@
 - [ ] **utils.py** : some important functions which are used through out
 - [ ] **data.py** : dataloaders and stuff 
 - [ ] **transform.py** : Not sure!
+
+- Read about Pseudo-rendering
