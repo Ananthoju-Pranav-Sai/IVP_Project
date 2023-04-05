@@ -50,9 +50,9 @@ class reconstruction_model(pl.LightningModule):
         self.model = model()
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
-        point_cloud = self.model(x)
-        loss = model_loss(opt, point_cloud, y, renderTrans)
+        images, depths, trans, masks = batch
+        point_cloud = self.model(images)
+        loss = model_loss(opt, point_cloud, (depths, masks), renderTrans)
         self.log("train_loss", loss)
         return loss
 
