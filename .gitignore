@@ -2,3 +2,4 @@
 .idea
 Testing.ipynb
 .ipynb_checkpoints
+__pycache__
