@@ -7,24 +7,27 @@ import lightning.pytorch as pl
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import torch.optim as optim
+import numpy as np
 
 
 class opt_class:
-    input_channel = 0
-    latentDim = 0
-    outputViewN = 0
-    batchSize = 0
-    Khom2Dto3D = 0
-    renderDepth = 0
-    outH = 0
-    outW = 0
-    novelN = 0
-    upscale = 0
-    Lambda = 0
+    input_channel = 3
+    outViewN = 8
+    batchSize = 20
+    Khom2Dto3D = np.array([[64, 0, 0, 64 / 2],
+                           [0, -64, 0, 64 / 2],
+                           [0, 0, -1, 0],
+                           [0, 0, 0, 1]], dtype=np.float32)
+    renderDepth = 1.0
+    outH = 64
+    outW = 64
+    novelN = 5
+    upscale = 5
+    Lambda = 1.0
 
 
 opt = opt_class()
-fusetrans = 0
+fusetrans = np.load(f"data/trans_fuse{opt.outViewN}.npy")
 renderTrans = 0
 
 
@@ -63,8 +66,8 @@ def main():
 
     train_dataset = ObjectDataset(chunk_size=50, train=True)
     test_dataset = ObjectDataset(chunk_size=50, train=False)
-    train_loader = DataLoader(train_dataset, shuffle=True)
-    test_loader = DataLoader(test_dataset)
+    train_loader = DataLoader(train_dataset, batch_size=opt.batchSize, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=opt.batchSize)
 
     trainer = pl.Trainer(max_epochs=100000, accelerator="gpu")
     trainer.fit(model=pl_model, train_dataloaders=train_loader)

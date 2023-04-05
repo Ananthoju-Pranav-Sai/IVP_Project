@@ -34,7 +34,7 @@ class Encoder(nn.Module):
         feat = self.conv2(feat)  # 16x16
         feat = self.conv3(feat)  # 8x8
         feat = self.conv4(feat)  # 4x4
-        feat = feat.view(-1, 256 * 4 * 4)
+        feat = feat.reshape([-1, 256 * 4 * 4])
         feat = self.fc1(feat)
         feat = self.fc2(feat)
         feat = self.fc3(feat)

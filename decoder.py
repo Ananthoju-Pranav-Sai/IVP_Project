@@ -7,10 +7,10 @@ class Decoder(nn.Module):
     def __init__(self, opt):
         super(Decoder, self).__init__()
         self.opt = opt
-        self.fc1 = nn.Linear(opt.latentDim, 1024)
+        self.fc1 = nn.Linear(512, 1024)
         self.fc2 = nn.Linear(1024, 2048)
         self.fc3 = nn.Linear(2048, 4096)
-        self.deconv1 = nn.ConvTranspose2d(4096, 192, kernel_size=4, stride=2, padding=1)
+        self.deconv1 = nn.ConvTranspose2d(256, 192, kernel_size=4, stride=2, padding=1)
         self.deconv2 = nn.ConvTranspose2d(192, 128, kernel_size=4, stride=2, padding=1)
         self.deconv3 = nn.ConvTranspose2d(128, 96, kernel_size=4, stride=2, padding=1)
         self.deconv4 = nn.ConvTranspose2d(96, 64, kernel_size=4, stride=2, padding=1)
@@ -22,7 +22,7 @@ class Decoder(nn.Module):
         feat = F.relu(self.fc1(feat))
         feat = F.relu(self.fc2(feat))
         feat = F.relu(self.fc3(feat))
-        feat = feat.view(-1, 4096, 4, 4)
+        feat = feat.view(self.opt.batchSize, -1, 4, 4)
         feat = F.relu(self.deconv1(feat))
         feat = F.relu(self.deconv2(feat))
         feat = F.relu(self.deconv3(feat))
