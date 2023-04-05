@@ -5,10 +5,10 @@ from torch.utils.data import Dataset
 
 
 class ObjectDataset(Dataset):
-    def __init__(self,category="03001627",chunk_size=50,train=True) -> None:
-        self.in_size = [64,64]
-        self.out_size = [128,128]
-        self.pred_size = [128,128]
+    def __init__(self, category="03001627", chunk_size=50, train=True) -> None:
+        self.in_size = [64, 64]
+        self.out_size = [128, 128]
+        self.pred_size = [128, 128]
         self.chunk_size = chunk_size
         self.sampleN = 100
         self.input_viewN = 24
@@ -19,7 +19,7 @@ class ObjectDataset(Dataset):
             data_list = f"data/{category}_train.list"
         else:
             data_list = f"data/{category}_test.list"
-        
+
         self.CADs = []
         with open(data_list) as file:
             for line in file:
@@ -36,10 +36,10 @@ class ObjectDataset(Dataset):
 
         for c in range(chunk_size):
             CAD = self.CADs[idx[c]]
-            images = np.load(f"data/{category}_inputRGB/{CAD}.npy")/255.0
+            images = np.load(f"data/{category}_inputRGB/{CAD}.npy") / 255.0
             raw_data = scipy.io.loadmat(f"data/{category}_depth/{CAD}.mat")
             depth = raw_data["Z"]
-            mask = depth!=0
+            mask = depth != 0
             depth[~mask] = 1.0
             trans = raw_data["trans"]
             for i in range(len(images)):
@@ -47,15 +47,14 @@ class ObjectDataset(Dataset):
                 self.data["depth"].append(depth[i])
                 self.data["trans"].append(trans[i])
                 self.data["mask"].append(mask[i])
-            
-        self.data["img"] = torch.tensor(np.array(self.data["img"],dtype=np.float32))
-        self.data["depth"] = torch.tensor(np.array(self.data["depth"],dtype=np.float32))
-        self.data["trans"] = torch.tensor(np.array(self.data["trans"],dtype = np.float32))
-        self.data["mask"] = torch.tensor(np.array(self.data["mask"],dtype=bool))
 
+        self.data["img"] = torch.tensor(np.array(self.data["img"], dtype=np.float32))
+        self.data["depth"] = torch.tensor(np.array(self.data["depth"], dtype=np.float32))
+        self.data["trans"] = torch.tensor(np.array(self.data["trans"], dtype=np.float32))
+        self.data["mask"] = torch.tensor(np.array(self.data["mask"], dtype=bool))
 
     def __len__(self):
         return len(self.data["img"])
-    
+
     def __getitem__(self, index):
-        return [self.data["img"][index],self.data["depth"][index],self.data["trans"][index],self.data["mask"][index]]
+        return [self.data["img"][index], self.data["depth"][index], self.data["trans"][index], self.data["mask"][index]]
