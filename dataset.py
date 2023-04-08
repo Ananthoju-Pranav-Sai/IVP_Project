@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 
 
 class ObjectDataset(Dataset):
-    def __init__(self, category="03001627", chunk_size=50, train=True) -> None:
+    def __init__(self, category="03001627", chunk_size=50, novelN =5, train=True) -> None:
         self.in_size = [64, 64]
         self.out_size = [128, 128]
         self.pred_size = [128, 128]
@@ -13,7 +13,7 @@ class ObjectDataset(Dataset):
         self.sampleN = 100
         self.input_viewN = 24
         self.out_viewN = 8
-        self.novelN = 5
+        self.novelN = novelN
         self.render_depth = 1.0
 
         if train:
@@ -42,10 +42,10 @@ class ObjectDataset(Dataset):
             depth = raw_data["Z"]
             mask = depth != 0
             depth[~mask] = 1.0
+            trans = raw_data["trans"]
             self.data["depth"].append(depth)
             self.data["trans"].append(trans)
             self.data["mask"].append(mask)
-            trans = raw_data["trans"]
             for i in range(len(images)):
                 self.data["img"].append(images[i])
 
