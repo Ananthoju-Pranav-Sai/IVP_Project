@@ -13,6 +13,7 @@ class ObjectDataset(Dataset):
         self.sampleN = 100
         self.input_viewN = 24
         self.out_viewN = 8
+        self.novelN = 5
         self.render_depth = 1.0
 
         if train:
@@ -41,12 +42,12 @@ class ObjectDataset(Dataset):
             depth = raw_data["Z"]
             mask = depth != 0
             depth[~mask] = 1.0
+            self.data["depth"].append(depth)
+            self.data["trans"].append(trans)
+            self.data["mask"].append(mask)
             trans = raw_data["trans"]
             for i in range(len(images)):
                 self.data["img"].append(images[i])
-                self.data["depth"].append(depth[i])
-                self.data["trans"].append(trans[i])
-                self.data["mask"].append(mask[i])
 
         self.data["img"] = torch.tensor(np.array(self.data["img"], dtype=np.float32))
         self.data["depth"] = torch.tensor(np.array(self.data["depth"], dtype=np.float32))
@@ -57,4 +58,6 @@ class ObjectDataset(Dataset):
         return len(self.data["img"])
 
     def __getitem__(self, index):
-        return [self.data["img"][index], self.data["depth"][index], self.data["trans"][index], self.data["mask"][index]]
+        sample_idx = np.random.randint(self.sampleN,size=self.novelN)
+        return [self.data["img"][index], self.data["depth"][index//self.input_viewN,sample_idx], \
+                self.data["trans"][index//self.input_viewN,sample_idx], self.data["mask"][index//self.input_viewN,sample_idx]]
