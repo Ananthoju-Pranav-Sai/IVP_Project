@@ -13,7 +13,7 @@ import numpy as np
 class opt_class:
     input_channel = 3
     outViewN = 8
-    batchSize = 20
+    batchSize = 10
     Khom2Dto3D = np.array([[64, 0, 0, 64 / 2],
                            [0, -64, 0, 64 / 2],
                            [0, 0, -1, 0],
@@ -68,8 +68,8 @@ def main():
 
     train_dataset = ObjectDataset(chunk_size=50, train=True)
     test_dataset = ObjectDataset(chunk_size=50, train=False)
-    train_loader = DataLoader(train_dataset, batch_size=opt.batchSize, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=opt.batchSize)
+    train_loader = DataLoader(train_dataset, batch_size=opt.batchSize, num_workers=4, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=opt.batchSize, num_workers=4)
 
     trainer = pl.Trainer(max_epochs=10000, accelerator="gpu")
     trainer.fit(model=pl_model, train_dataloaders=train_loader)
