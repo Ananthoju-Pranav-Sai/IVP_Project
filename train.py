@@ -1,5 +1,3 @@
-import torch
-
 from dataset import ObjectDataset
 from encoder import Encoder
 from decoder import Decoder
@@ -32,8 +30,7 @@ class opt_class:
 
 opt = opt_class()
 fusetrans = np.load(f"data/trans_fuse{opt.outViewN}.npy")
-fusetrans /= np.linalg.norm(axis=1)[:, np.newaxis]
-renderTrans = 0
+fusetrans /= np.linalg.norm(fusetrans, axis=1)[:, np.newaxis]
 
 
 class model(nn.Module):
