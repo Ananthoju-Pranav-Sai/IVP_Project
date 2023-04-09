@@ -166,4 +166,8 @@ def render2D(opt, XYZid, ML, renderTrans):
                                            torch.ones_like(newInvDepth) * (-offsetMaskLogit)))
     newDepth = 1 / (newInvDepth + 1e-8) - offsetDepth
 
+    newDepth = torch.reshape(newDepth, [opt.batchSize, opt.novelN, opt.outH, opt.outW])
+    newMaskLogit = torch.reshape(newMaskLogit, [opt.batchSize, opt.novelN, opt.outH, opt.outW])
+    Collision = torch.reshape(Collision, [opt.batchSize, opt.novelN, opt.outH, opt.outW])
+
     return newDepth, newMaskLogit, Collision
