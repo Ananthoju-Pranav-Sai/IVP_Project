@@ -30,13 +30,13 @@ def get3DhomCoord(XYZ, opt):
 
 def get3DhomCoord2(XYZ, opt):
     ones = torch.ones([opt.batchSize, 1, opt.outViewN * opt.outH * opt.outW])
-    XYZhom = torch.concatenate([XYZ, ones], axis=1)
+    XYZhom = torch.cat([XYZ, ones], axis=1)
     return XYZhom  # [B,4,VHW]
 
 
 def fuse3D(opt, XYZ, masklogit, fuseTrans):
     # 2D to 3D coordinate transformation
-    invKhom = torch.inverse(opt.Khom2Dto3D)
+    invKhom = torch.inverse(torch.tensor(opt.Khom2Dto3D))
     invKhomTile = torch.tile(invKhom, [opt.batchSize, opt.outViewN, 1, 1])
     # viewpoint rigid transformation
     q_view = torch.Tensor(fuseTrans)
@@ -64,7 +64,7 @@ def render2D(opt, XYZid, ML, renderTrans):
 
     # 3D to 2D coordinate transformation
     KupHom = opt.Khom2Dto3D * np.array([[opt.upscale], [opt.upscale], [1], [1]], dtype=np.float32)
-    kupHomTile = torch.tile(KupHom, [opt.batchSize, opt.novelN, 1, 1])
+    kupHomTile = torch.tile(torch.tensor(KupHom), [opt.batchSize, opt.novelN, 1, 1])
 
     # effective transformation
     RtHomTile = torch.matmul(kupHomTile, RtHom_target)  # [B, N, 4, 4]
@@ -123,17 +123,20 @@ def render2D(opt, XYZid, ML, renderTrans):
 
     upNewiZMLCnt = torch.reshape(upNewiZMLCnt,
                                  [opt.batchSize * opt.novelN, opt.H * opt.upscale, opt.W * opt.upscale, 3])
+    upNewiZMLCnt = upNewiZMLCnt.permute([0, 3, 1, 2])
 
     # downsample back to original size
     # upNewiZMLCnt = torch.tensor(upNewiZMLCnt)
     newiZMLCnt_tensor = torch.nn.functional.max_pool2d(upNewiZMLCnt, kernel_size=opt.upscale, stride=opt.upscale,
                                                        padding=0)
 
+    newiZMLCnt_tensor = newiZMLCnt_tensor.permute([0, 2, 3, 1])
+
     # newiZMLCnt_tensor = np.max(np.reshape(upNewiZMLCnt.detach().numpy(),
     #                                      [opt.batchSize, opt.novelN, opt.H, opt.upscale, opt.W, opt.upscale, 3]),
     #                           axis=(3, 5))
 
-    newiZMLCnt = torch.reshape(torch.tensor(newiZMLCnt_tensor), [opt.batchSize, opt.novelN, opt.H, opt.W, 3])
+    newiZMLCnt = torch.reshape(newiZMLCnt_tensor, [opt.batchSize, opt.novelN, opt.H, opt.W, 3])
     newInvDepth, newMaskLogitVis, Collision = torch.split(newiZMLCnt, 1, dim=4)
 
     # map to unsampled inverse depth and mask (invisible)
@@ -150,13 +153,14 @@ def render2D(opt, XYZid, ML, renderTrans):
 
     # downsample back to original size
     # upNewML = torch.tensor(upNewML)
+    upNewML = upNewML.permute([0, 3, 1, 2])
     newML = torch.nn.functional.max_pool2d(upNewML, kernel_size=opt.upscale, stride=opt.upscale, padding=0)
-
+    newML = newML.permute([0, 2, 3, 1])
     # newML = np.max(
     #   np.reshape(upNewML.detach().numpy(), [opt.batchSize, opt.novelN, opt.H, opt.upscale, opt.W, opt.upscale, 1]),
     #    axis=(3, 5))
 
-    newMaskLogitInvis = torch.reshape(torch.tensor(newML), [opt.batchSize, opt.novelN, opt.H, opt.W, 1])
+    newMaskLogitInvis = torch.reshape(newML, [opt.batchSize, opt.novelN, opt.H, opt.W, 1])
 
     # Combining visible/invisible
     newMaskLogit = torch.where(newMaskLogitVis > 0, newMaskLogitVis,
