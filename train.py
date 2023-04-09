@@ -1,3 +1,5 @@
+import torch
+
 from dataset import ObjectDataset
 from encoder import Encoder
 from decoder import Decoder
@@ -30,6 +32,7 @@ class opt_class:
 
 opt = opt_class()
 fusetrans = np.load(f"data/trans_fuse{opt.outViewN}.npy")
+fusetrans /= np.linalg.norm(axis=1)[:, np.newaxis]
 renderTrans = 0
 
 
@@ -54,7 +57,7 @@ class reconstruction_model(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         images, depths, trans, masks = batch
         point_cloud = self.model(images)
-        loss = model_loss(opt, point_cloud, (depths, masks), renderTrans)
+        loss = model_loss(opt, point_cloud, (depths, masks), trans)
         self.log("train_loss", loss)
         return loss
 
@@ -71,7 +74,7 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=opt.batchSize, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=opt.batchSize)
 
-    trainer = pl.Trainer(max_epochs=100000, accelerator="gpu")
+    trainer = pl.Trainer(max_epochs=10000, accelerator="gpu")
     trainer.fit(model=pl_model, train_dataloaders=train_loader)
 
     trainer.test(model=pl_model, dataloaders=test_loader)
