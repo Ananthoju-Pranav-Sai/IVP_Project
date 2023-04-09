@@ -55,7 +55,7 @@ class reconstruction_model(pl.LightningModule):
         images, depths, trans, masks = batch
         point_cloud = self.model(images)
         loss = model_loss(opt, point_cloud, (depths, masks), trans)
-        self.log("train_loss", loss)
+        self.log("train_loss", loss, prog_bar=True)
         return loss
 
     def configure_optimizers(self):

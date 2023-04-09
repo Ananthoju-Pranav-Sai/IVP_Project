@@ -164,6 +164,7 @@ def render2D(opt, XYZid, ML, renderTrans):
     newMaskLogit = torch.where(newMaskLogitVis > 0, newMaskLogitVis,
                                torch.where(newMaskLogitInvis < 0, newMaskLogitInvis,
                                            torch.ones_like(newInvDepth) * (-offsetMaskLogit)))
+
     newDepth = 1 / (newInvDepth + 1e-8) - offsetDepth
 
     newDepth = torch.reshape(newDepth, [opt.batchSize, opt.novelN, opt.outH, opt.outW])
