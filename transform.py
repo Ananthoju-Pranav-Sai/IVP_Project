@@ -91,7 +91,7 @@ def render2D(opt, XYZid, ML, renderTrans):
     # apply in-range masks
     XnewCatInt = torch.round(XnewCat).to(torch.int32)
     YnewCatInt = torch.round(YnewCat).to(torch.int32)
-    maskInside = (XnewCatInt >= 0) & (XnewCatInt < opt.W) & (YnewCatInt >= 0) & (YnewCatInt < opt.upscale * opt.H)
+    maskInside = (XnewCatInt >= 0) & (XnewCatInt < opt.upscale * opt.W) & (YnewCatInt >= 0) & (YnewCatInt < opt.upscale * opt.H)
     valueInt = torch.stack([XnewCatInt, YnewCatInt, batchIdxCat, novelIdxCat], dim=1)
     valueFloat = torch.stack([1 / (ZnewCat + offsetDepth + 1e-8), MLcat], dim=1)
     insideInt = valueInt[maskInside.numpy().astype(bool)]
@@ -126,13 +126,12 @@ def render2D(opt, XYZid, ML, renderTrans):
 
     # downsample back to original size
     # upNewiZMLCnt = torch.tensor(upNewiZMLCnt)
-    # newiZMLCnt_tensor = torch.nn.functional.max_pool2d(upNewiZMLCnt,
-    #                                                    kernel_size=opt.upscale,
-    #                                                    stride=opt.upscale, padding=0)
+    newiZMLCnt_tensor = torch.nn.functional.max_pool2d(upNewiZMLCnt, kernel_size=opt.upscale, stride=opt.upscale,
+                                                       padding=0)
 
-    newiZMLCnt_tensor = np.max(np.reshape(upNewiZMLCnt.detach().numpy(),
-                                          [opt.batchSize, opt.novelN, opt.H, opt.upscale, opt.W, opt.upscale, 3]),
-                               axis=(3, 5))
+    # newiZMLCnt_tensor = np.max(np.reshape(upNewiZMLCnt.detach().numpy(),
+    #                                      [opt.batchSize, opt.novelN, opt.H, opt.upscale, opt.W, opt.upscale, 3]),
+    #                           axis=(3, 5))
 
     newiZMLCnt = torch.reshape(torch.tensor(newiZMLCnt_tensor), [opt.batchSize, opt.novelN, opt.H, opt.W, 3])
     newInvDepth, newMaskLogitVis, Collision = torch.split(newiZMLCnt, 1, dim=4)
@@ -151,14 +150,11 @@ def render2D(opt, XYZid, ML, renderTrans):
 
     # downsample back to original size
     # upNewML = torch.tensor(upNewML)
-    # newML = torch.nn.functional.max_pool2d(upNewML,
-    #                                     kernel_size=(opt.upscale, opt.upscale),
-    #                                     stride=(opt.upscale, opt.upscale),
-    #                                     padding=0)
+    newML = torch.nn.functional.max_pool2d(upNewML, kernel_size=opt.upscale, stride=opt.upscale, padding=0)
 
-    newML = np.max(
-        np.reshape(upNewML.detach().numpy(), [opt.batchSize, opt.novelN, opt.H, opt.upscale, opt.W, opt.upscale, 1]),
-        axis=(3, 5))
+    # newML = np.max(
+    #   np.reshape(upNewML.detach().numpy(), [opt.batchSize, opt.novelN, opt.H, opt.upscale, opt.W, opt.upscale, 1]),
+    #    axis=(3, 5))
 
     newMaskLogitInvis = torch.reshape(torch.tensor(newML), [opt.batchSize, opt.novelN, opt.H, opt.W, 1])
 
