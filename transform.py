@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+
 def quaternionToRotMatrix(q):
     qa, qb, qc, qd = torch.unbind(q, dim=1)
     one = torch.stack([1 - 2 * (qc ** 2 + qd ** 2), 2 * (qb * qc - qa * qd), 2 * (qa * qc + qb * qd)])
@@ -9,20 +10,23 @@ def quaternionToRotMatrix(q):
     R = torch.permute(torch.stack([one, two, three]), dims=[2, 0, 1])
     return R
 
+
 def transParamsToHomMatrix(q, t):
     N = q.shape[0]
     R = quaternionToRotMatrix(q)
     Rt = torch.cat([R, torch.unsqueeze(t, axis=-1)], axis=2)
     hom_aug = torch.ones([N, 1, 4])
-    hom_aug[:,:, 0:3] = 0
+    hom_aug[:, :, 0:3] = 0
     # hom_aug = torch.cat([np.zeros([N, 1, 3], np.ones([N, 1, 1]))], axis=2)
     RtHom = torch.cat([Rt, hom_aug], axis=1)
     return RtHom
+
 
 def get3DhomCoord(XYZ, opt):
     ones = torch.ones([opt.batchSize, opt.outViewN, opt.outH, opt.outW])
     XYZhom = torch.transpose(torch.reshape(torch.cat([XYZ, ones], axis=1), [opt.batchSize, 4, opt.outViewN, -1]), 1, 2)
     return XYZhom  # [B,V,4,HW]
+
 
 def get3DhomCoord2(XYZ, opt):
     ones = torch.ones([opt.batchSize, 1, opt.outViewN * opt.outH * opt.outW])
@@ -51,6 +55,7 @@ def fuse3D(opt, XYZ, masklogit, fuseTrans):
     XYZid = XYZid.permute(0, 2, 1, 3).reshape(opt.batchSize, 3, -1)  # [B, 3, VHW]
     return XYZid, ML  # [B, 1, VHW]
 
+
 def render2D(opt, XYZid, ML, renderTrans):
     offsetDepth, offsetMaskLogit = 10.0, 1.0
     q_target = torch.reshape(renderTrans, [opt.novelN * opt.batchSize, 4])
@@ -76,8 +81,10 @@ def render2D(opt, XYZid, ML, renderTrans):
     XnewCat = torch.reshape(Xnew, [-1])
     YnewCat = torch.reshape(Ynew, [-1])
     ZnewCat = torch.reshape(Znew, [-1])
-    batchIdxCat, novelIdxCat, _ = torch.meshgrid(torch.arange(start = 0,end = opt.batchSize, step = 1), torch.arange(start = 0, end = opt.novelN, step =1),
-                                              torch.arange(start = 0, end = opt.outViewN * opt.outH * opt.outW, step = 1), indexing='ij')
+    batchIdxCat, novelIdxCat, _ = torch.meshgrid(torch.arange(start=0, end=opt.batchSize, step=1),
+                                                 torch.arange(start=0, end=opt.novelN, step=1),
+                                                 torch.arange(start=0, end=opt.outViewN * opt.outH * opt.outW, step=1),
+                                                 indexing='ij')
     batchIdxCat = torch.reshape(batchIdxCat, [-1])
     novelIdxCat = torch.reshape(novelIdxCat, [-1])
 
@@ -85,11 +92,11 @@ def render2D(opt, XYZid, ML, renderTrans):
     XnewCatInt = torch.round(XnewCat).to(torch.int32)
     YnewCatInt = torch.round(YnewCat).to(torch.int32)
     maskInside = (XnewCatInt >= 0) & (XnewCatInt < opt.W) & (YnewCatInt >= 0) & (YnewCatInt < opt.upscale * opt.H)
-    valueInt = torch.stack([XnewCatInt,YnewCatInt,batchIdxCat,novelIdxCat],dim=1)
+    valueInt = torch.stack([XnewCatInt, YnewCatInt, batchIdxCat, novelIdxCat], dim=1)
     valueFloat = torch.stack([1 / (ZnewCat + offsetDepth + 1e-8), MLcat], dim=1)
     insideInt = valueInt[maskInside.numpy().astype(bool)]
     insideFloat = valueFloat[maskInside.numpy().astype(bool)]
-    MLnewValid, _ = torch.unbind(insideFloat, dim=1)# [VWH, N]
+    MLnewValid, _ = torch.unbind(insideFloat, dim=1)  # [VWH, N]
 
     # apply visible masks
     maskVisible = np.array((MLnewValid > 0)).astype(bool)
@@ -114,24 +121,25 @@ def render2D(opt, XYZid, ML, renderTrans):
     upNewiZMLCnt = torch.zeros(tuple(scatterShape))
     upNewiZMLCnt[scatterIdx[:, 0], scatterIdx[:, 1], scatterIdx[:, 2], scatterIdx[:, 3], :] = scatteriZMLCnt.squeeze(2)
 
-    upNewiZMLCnt = torch.reshape(upNewiZMLCnt, [opt.batchSize * opt.novelN, opt.H * opt.upscale, opt.W * opt.upscale, 3])
+    upNewiZMLCnt = torch.reshape(upNewiZMLCnt,
+                                 [opt.batchSize * opt.novelN, opt.H * opt.upscale, opt.W * opt.upscale, 3])
 
     # downsample back to original size
     # upNewiZMLCnt = torch.tensor(upNewiZMLCnt)
-    # newiZMLCnt_tensor = torch.nn.functional.max_pool2d(upNewiZMLCnt, 
-    #                                                    kernel_size=opt.upscale, 
+    # newiZMLCnt_tensor = torch.nn.functional.max_pool2d(upNewiZMLCnt,
+    #                                                    kernel_size=opt.upscale,
     #                                                    stride=opt.upscale, padding=0)
 
-    newiZMLCnt_tensor= np.max(np.reshape(upNewiZMLCnt.detach().numpy(), [opt.batchSize, opt.novelN, opt.H, opt.upscale, opt.W, opt.upscale, 3]), axis=(3, 5))
-
-    
+    newiZMLCnt_tensor = np.max(np.reshape(upNewiZMLCnt.detach().numpy(),
+                                          [opt.batchSize, opt.novelN, opt.H, opt.upscale, opt.W, opt.upscale, 3]),
+                               axis=(3, 5))
 
     newiZMLCnt = torch.reshape(torch.tensor(newiZMLCnt_tensor), [opt.batchSize, opt.novelN, opt.H, opt.W, 3])
     newInvDepth, newMaskLogitVis, Collision = torch.split(newiZMLCnt, 1, dim=4)
 
     # map to unsampled inverse depth and mask (invisible)
     scatterIdx = torch.stack([batchIdxInvis, novelIdxInvis, YnewInvis, XnewInvis], axis=1)
-    scatterShape = torch.tensor([opt.batchSize, opt.novelN, opt.H * opt.upscale, opt.W* opt.upscale, 1])
+    scatterShape = torch.tensor([opt.batchSize, opt.novelN, opt.H * opt.upscale, opt.W * opt.upscale, 1])
     scatterML = torch.stack([MLnewInvis], axis=1)
 
     scatterIdx = scatterIdx.detach().numpy()
@@ -148,12 +156,16 @@ def render2D(opt, XYZid, ML, renderTrans):
     #                                     stride=(opt.upscale, opt.upscale),
     #                                     padding=0)
 
-    newML = np.max(np.reshape(upNewML.detach().numpy(), [opt.batchSize, opt.novelN, opt.H, opt.upscale, opt.W, opt.upscale, 1]), axis=(3, 5))
+    newML = np.max(
+        np.reshape(upNewML.detach().numpy(), [opt.batchSize, opt.novelN, opt.H, opt.upscale, opt.W, opt.upscale, 1]),
+        axis=(3, 5))
 
     newMaskLogitInvis = torch.reshape(torch.tensor(newML), [opt.batchSize, opt.novelN, opt.H, opt.W, 1])
 
     # Combining visible/invisible
-    newMaskLogit = torch.where(newMaskLogitVis > 0,newMaskLogitVis, torch.where(newMaskLogitInvis < 0, newMaskLogitInvis,torch.ones_like(newInvDepth) * (-offsetMaskLogit)))
+    newMaskLogit = torch.where(newMaskLogitVis > 0, newMaskLogitVis,
+                               torch.where(newMaskLogitInvis < 0, newMaskLogitInvis,
+                                           torch.ones_like(newInvDepth) * (-offsetMaskLogit)))
     newDepth = 1 / (newInvDepth + 1e-8) - offsetDepth
 
     return newDepth, newMaskLogit, Collision

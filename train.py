@@ -19,11 +19,13 @@ class opt_class:
                            [0, 0, -1, 0],
                            [0, 0, 0, 1]], dtype=np.float32)
     renderDepth = 1.0
-    outH = 64
-    outW = 64
+    outH = 128
+    outW = 128
     novelN = 5
     upscale = 5
     Lambda = 1.0
+    H = 128
+    W = 128
 
 
 opt = opt_class()
