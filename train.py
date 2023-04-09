@@ -18,6 +18,10 @@ class opt_class:
                            [0, -64, 0, 64 / 2],
                            [0, 0, -1, 0],
                            [0, 0, 0, 1]], dtype=np.float32)
+    Khom3Dto2D = np.array(np.array([[128, 0, 0, 128 / 2],
+                                    [0, -128, 0, 128 / 2],
+                                    [0, 0, -1, 0],
+                                    [0, 0, 0, 1]], dtype=np.float32))
     renderDepth = 1.0
     outH = 128
     outW = 128
@@ -54,8 +58,10 @@ class reconstruction_model(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         images, depths, trans, masks = batch
         point_cloud = self.model(images)
-        loss = model_loss(opt, point_cloud, (depths, masks), trans)
-        self.log("train_loss", loss, prog_bar=True)
+        loss1, loss2 = model_loss(opt, point_cloud, (depths, masks), trans)
+        self.log("l1_loss", loss1, prog_bar=True)
+        self.log("bce_loss", loss2, prog_bar=True)
+        loss = loss1 + opt.Lambda * loss2
         return loss
 
     def configure_optimizers(self):

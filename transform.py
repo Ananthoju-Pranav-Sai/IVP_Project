@@ -65,7 +65,7 @@ def render2D(opt, XYZid, ML, renderTrans):
     RtHom_target = torch.reshape(transParamsToHomMatrix(q_target, t_target), [opt.batchSize, opt.novelN, 4, 4])
 
     # 3D to 2D coordinate transformation
-    KupHom = opt.Khom2Dto3D * np.array([[opt.upscale], [opt.upscale], [1], [1]], dtype=np.float32)
+    KupHom = opt.Khom3Dto2D * np.array([[opt.upscale], [opt.upscale], [1], [1]], dtype=np.float32)
     kupHomTile = torch.tile(torch.tensor(KupHom, device=device), [opt.batchSize, opt.novelN, 1, 1])
 
     # effective transformation
@@ -98,7 +98,7 @@ def render2D(opt, XYZid, ML, renderTrans):
     valueFloat = torch.stack([1 / (ZnewCat + offsetDepth + 1e-8), MLcat], dim=1)
     insideInt = valueInt[maskInside.cpu().numpy().astype(bool)]
     insideFloat = valueFloat[maskInside.cpu().numpy().astype(bool)]
-    MLnewValid, _ = torch.unbind(insideFloat, dim=1)  # [VWH, N]
+    _, MLnewValid = torch.unbind(insideFloat, dim=1)  # [VWH, N]
 
     # apply visible masks
     maskVisible = (MLnewValid > 0).cpu().numpy().astype(bool)
@@ -108,55 +108,43 @@ def render2D(opt, XYZid, ML, renderTrans):
     invisFloat = insideFloat[~maskVisible]
 
     XnewVis, YnewVis, batchIdxVis, novelIdxVis = torch.unbind(visInt, dim=1)
-    iZnewVis, MLnewVis = torch.chunk(visFloat, 2, dim=1)
+    iZnewVis, MLnewVis = torch.unbind(visFloat, dim=1)
     XnewInvis, YnewInvis, batchIdxInvis, novelIdxInvis = torch.unbind(invisInt, dim=1)  # [VWH, N]
-    _, MLnewInvis = torch.chunk(invisFloat, 2, dim=1)
+    _, MLnewInvis = torch.unbind(invisFloat, dim=1)
 
     # map to unsampled inverse depth and mask (visible)
-    scatterIdx = torch.stack([batchIdxVis, novelIdxVis, YnewVis, XnewVis], axis=1)
     countOnes = torch.ones_like(iZnewVis)
-    scatteriZMLCnt = torch.stack([iZnewVis, MLnewVis, countOnes], axis=1)
 
-    scatterIdx = scatterIdx.cpu().numpy()
+    tmp = torch.ones(len(batchIdxVis), dtype=torch.int64, device=device)
+
     upNewiZMLCnt = torch.zeros(tuple([opt.batchSize, opt.novelN, opt.H * opt.upscale, opt.W * opt.upscale, 3]), device=device)
-    upNewiZMLCnt[scatterIdx[:, 0], scatterIdx[:, 1], scatterIdx[:, 2], scatterIdx[:, 3], :] = scatteriZMLCnt.squeeze(2)
+    upNewiZMLCnt.index_put_((batchIdxVis, novelIdxVis, YnewVis, XnewVis, 0 * tmp), iZnewVis, accumulate=True)
+    upNewiZMLCnt.index_put_((batchIdxVis, novelIdxVis, YnewVis, XnewVis, tmp), MLnewVis, accumulate=True)
+    upNewiZMLCnt.index_put_((batchIdxVis, novelIdxVis, YnewVis, XnewVis, 2 * tmp), countOnes, accumulate=True)
 
     upNewiZMLCnt = torch.reshape(upNewiZMLCnt,
                                  [opt.batchSize * opt.novelN, opt.H * opt.upscale, opt.W * opt.upscale, 3])
     upNewiZMLCnt = upNewiZMLCnt.permute([0, 3, 1, 2])
 
     # downsample back to original size
-    # upNewiZMLCnt = torch.tensor(upNewiZMLCnt)
     newiZMLCnt_tensor = torch.nn.functional.max_pool2d(upNewiZMLCnt, kernel_size=opt.upscale, stride=opt.upscale,
                                                        padding=0)
 
     newiZMLCnt_tensor = newiZMLCnt_tensor.permute([0, 2, 3, 1])
 
-    # newiZMLCnt_tensor = np.max(np.reshape(upNewiZMLCnt.detach().numpy(),
-    #                                      [opt.batchSize, opt.novelN, opt.H, opt.upscale, opt.W, opt.upscale, 3]),
-    #                           axis=(3, 5))
-
     newiZMLCnt = torch.reshape(newiZMLCnt_tensor, [opt.batchSize, opt.novelN, opt.H, opt.W, 3])
     newInvDepth, newMaskLogitVis, Collision = torch.split(newiZMLCnt, 1, dim=4)
 
-    # map to unsampled inverse depth and mask (invisible)
-    scatterIdx = torch.stack([batchIdxInvis, novelIdxInvis, YnewInvis, XnewInvis], axis=1)
-    scatterML = torch.stack([MLnewInvis], axis=1)
-
-    scatterIdx = scatterIdx.cpu().numpy()
     upNewML = torch.zeros(tuple([opt.batchSize, opt.novelN, opt.H * opt.upscale, opt.W * opt.upscale, 1]), dtype=torch.float32, device=device)
-    upNewML[scatterIdx[:, 0], scatterIdx[:, 1], scatterIdx[:, 2], scatterIdx[:, 3], :] = scatterML.squeeze(2)
+    tmp = torch.ones(len(batchIdxInvis), dtype=torch.int64, device=device)
+    upNewML.index_put_((batchIdxInvis, novelIdxInvis, YnewInvis, XnewInvis, 0 * tmp), MLnewInvis, accumulate=True)
 
     upNewML = torch.reshape(upNewML, [opt.batchSize * opt.novelN, opt.H * opt.upscale, opt.W * opt.upscale, 1])
 
     # downsample back to original size
-    # upNewML = torch.tensor(upNewML)
     upNewML = upNewML.permute([0, 3, 1, 2])
     newML = torch.nn.functional.max_pool2d(upNewML, kernel_size=opt.upscale, stride=opt.upscale, padding=0)
     newML = newML.permute([0, 2, 3, 1])
-    # newML = np.max(
-    #   np.reshape(upNewML.detach().numpy(), [opt.batchSize, opt.novelN, opt.H, opt.upscale, opt.W, opt.upscale, 1]),
-    #    axis=(3, 5))
 
     newMaskLogitInvis = torch.reshape(newML, [opt.batchSize, opt.novelN, opt.H, opt.W, 1])
 
@@ -170,5 +158,4 @@ def render2D(opt, XYZid, ML, renderTrans):
     newDepth = torch.reshape(newDepth, [opt.batchSize, opt.novelN, opt.outH, opt.outW])
     newMaskLogit = torch.reshape(newMaskLogit, [opt.batchSize, opt.novelN, opt.outH, opt.outW])
     Collision = torch.reshape(Collision, [opt.batchSize, opt.novelN, opt.outH, opt.outW])
-
     return newDepth, newMaskLogit, Collision
