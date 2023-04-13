@@ -13,7 +13,7 @@ class Encoder(nn.Module):
         self.conv4 = self.conv2Layer(192, 256)
         self.fc1 = self.linearLayer(256 * 4 * 4, 2048)
         self.fc2 = self.linearLayer(2048, 1024)
-        self.fc3 = self.linearLayer(1024, 512)
+        self.fc3 = self.finalLayer(1024, 512)
 
     def conv2Layer(self, in_channels, out_channels):
         conv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=2, padding=1)
@@ -26,6 +26,10 @@ class Encoder(nn.Module):
         batchnorm = nn.BatchNorm1d(num_features=out_features)
         relu = nn.ReLU(inplace=True)
         return nn.Sequential(fc, batchnorm, relu)
+
+    def finalLayer(self, in_features, out_features):
+        fc = nn.Linear(in_features=in_features, out_features=out_features)
+        return nn.Sequential(fc)
 
     def forward(self, x):
         x = x.permute(0, 3, 1, 2)  # [B,H,W,3] -> [B,3,H,W]
