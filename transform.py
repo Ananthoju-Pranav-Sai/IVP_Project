@@ -143,7 +143,7 @@ def render2D(opt, XYZid, ML, renderTrans):
 
     # downsample back to original size
     upNewML = upNewML.permute([0, 3, 1, 2])
-    newML = torch.nn.functional.max_pool2d(upNewML, kernel_size=opt.upscale, stride=opt.upscale, padding=0)
+    newML = torch.nn.functional.avg_pool2d(upNewML, kernel_size=opt.upscale, stride=opt.upscale, padding=0)
     newML = newML.permute([0, 2, 3, 1])
 
     newMaskLogitInvis = torch.reshape(newML, [opt.batchSize, opt.novelN, opt.H, opt.W, 1])

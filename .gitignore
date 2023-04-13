@@ -4,3 +4,4 @@ Testing.ipynb
 .ipynb_checkpoints
 __pycache__
 lightning_logs
+train_pranav.py

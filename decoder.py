@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 class Decoder(nn.Module):
     def __init__(self, opt):
-        super(Decoder, self).__init__()
+        super().__init__()
         self.opt = opt
         self.fc1 = nn.Linear(512, 1024)
         self.fc2 = nn.Linear(1024, 2048)

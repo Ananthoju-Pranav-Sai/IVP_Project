@@ -4,7 +4,7 @@ import torch.nn as nn
 
 class Encoder(nn.Module):
     def __init__(self, opt):
-        super(Encoder, self).__init__()
+        super().__init__()
         self.opt = opt
 
         self.conv1 = self.conv2Layer(int(opt.input_channel), 96)
