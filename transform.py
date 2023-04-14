@@ -1,7 +1,6 @@
 import numpy as np
 import torch
-
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+import logging
 
 
 def quaternionToRotMatrix(q):
@@ -13,7 +12,7 @@ def quaternionToRotMatrix(q):
     return R
 
 
-def transParamsToHomMatrix(q, t):
+def transParamsToHomMatrix(q, t, device):
     N = q.shape[0]
     R = quaternionToRotMatrix(q)
     Rt = torch.cat([R, torch.unsqueeze(t, axis=-1)], axis=2)
@@ -24,26 +23,26 @@ def transParamsToHomMatrix(q, t):
     return RtHom
 
 
-def get3DhomCoord(XYZ, opt):
+def get3DhomCoord(XYZ, opt, device):
     ones = torch.ones([opt.batchSize, opt.outViewN, opt.outH, opt.outW], device=device)
     XYZhom = torch.transpose(torch.reshape(torch.cat([XYZ, ones], axis=1), [opt.batchSize, 4, opt.outViewN, -1]), 1, 2)
     return XYZhom  # [B,V,4,HW]
 
 
-def get3DhomCoord2(XYZ, opt):
+def get3DhomCoord2(XYZ, opt, device):
     ones = torch.ones([opt.batchSize, 1, opt.outViewN * opt.outH * opt.outW], device=device)
     XYZhom = torch.cat([XYZ, ones], axis=1)
     return XYZhom  # [B,4,VHW]
 
 
-def fuse3D(opt, XYZ, masklogit, fuseTrans):
+def fuse3D(opt, XYZ, masklogit, fuseTrans, device):
     # 2D to 3D coordinate transformation
     invKhom = torch.inverse(torch.tensor(opt.Khom2Dto3D, device=device))
     invKhomTile = torch.tile(invKhom, [opt.batchSize, opt.outViewN, 1, 1])
     # viewpoint rigid transformation
     q_view = torch.tensor(fuseTrans, device=device)
     t_view = torch.tile(torch.tensor([0, 0, -opt.renderDepth], device=device), [opt.outViewN, 1])
-    RtHom_view = transParamsToHomMatrix(q_view, t_view)
+    RtHom_view = transParamsToHomMatrix(q_view, t_view, device)
     RtHomTile_view = torch.tile(RtHom_view, [opt.batchSize, 1, 1, 1])
     invRtHomTile_view = torch.inverse(RtHomTile_view)
     # effective transformation
@@ -51,18 +50,18 @@ def fuse3D(opt, XYZ, masklogit, fuseTrans):
     RtTile = RtHomTile[:, :, :3, :]  # [B, V, 3, 4]
     # transform depth stack
     ML = torch.reshape(masklogit, [opt.batchSize, 1, -1])  # [B, 1, VHW]
-    XYZhom = get3DhomCoord(XYZ, opt)  # [B, H, W, V, 4]
+    XYZhom = get3DhomCoord(XYZ, opt, device)  # [B, H, W, V, 4]
     XYZid = torch.matmul(RtTile, XYZhom)  # [B, V, 3, H, W, 1]
     # fuse point clouds
     XYZid = XYZid.permute(0, 2, 1, 3).reshape(opt.batchSize, 3, -1)  # [B, 3, VHW]
     return XYZid, ML  # [B, 1, VHW]
 
 
-def render2D(opt, XYZid, ML, renderTrans):
+def render2D(opt, XYZid, ML, renderTrans, device):
     offsetDepth, offsetMaskLogit = 10.0, 1.0
     q_target = torch.reshape(renderTrans, [opt.novelN * opt.batchSize, 4])
     t_target = torch.tile(torch.tensor([0, 0, -opt.renderDepth], device=device), [opt.batchSize * opt.novelN, 1])
-    RtHom_target = torch.reshape(transParamsToHomMatrix(q_target, t_target), [opt.batchSize, opt.novelN, 4, 4])
+    RtHom_target = torch.reshape(transParamsToHomMatrix(q_target, t_target, device), [opt.batchSize, opt.novelN, 4, 4])
 
     # 3D to 2D coordinate transformation
     KupHom = opt.Khom3Dto2D * np.array([[opt.upscale], [opt.upscale], [1], [1]], dtype=np.float32)
@@ -73,7 +72,7 @@ def render2D(opt, XYZid, ML, renderTrans):
     RtTile = RtHomTile[:, :, :3, :]  # [B, N, 3, 4]
 
     # transform depth stack
-    XYZidHom = get3DhomCoord2(XYZid, opt)  # [B, H, W, V, 4]
+    XYZidHom = get3DhomCoord2(XYZid, opt, device)  # [B, H, W, V, 4]
     XYZidHomTile = torch.tile(torch.unsqueeze(XYZidHom, 1), [1, opt.novelN, 1, 1])  # [B, N, 4, VWH]
     XYZnew = torch.matmul(RtTile, XYZidHomTile)  # [B, N, 3, VWH]
     Xnew, Ynew, Znew = XYZnew[:, :, 0, :], XYZnew[:, :, 1, :], XYZnew[:, :, 2, :]  # [B, N, VWH]

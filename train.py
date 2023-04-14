@@ -43,10 +43,10 @@ class model(nn.Module):
         self.encoder = Encoder(opt)
         self.decoder = Decoder(opt)
 
-    def forward(self, x):
+    def forward(self, x, device):
         x = self.encoder(x)
         xyz, maskLogit = self.decoder(x)
-        x = fuse3D(opt, xyz, maskLogit, fusetrans)
+        x = fuse3D(opt, xyz, maskLogit, fusetrans, device)
         return x
 
 
@@ -57,8 +57,8 @@ class reconstruction_model(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         images, depths, trans, masks = batch
-        point_cloud = self.model(images)
-        loss1, loss2 = model_loss(opt, point_cloud, (depths, masks), trans)
+        point_cloud = self.model(images, self.device)
+        loss1, loss2 = model_loss(opt, point_cloud, (depths, masks), trans, self.device)
         self.log("l1_loss", loss1, prog_bar=True, on_epoch=True)
         self.log("bce_loss", loss2, prog_bar=True, on_epoch=True)
         loss = loss1 + opt.Lambda * loss2
@@ -78,15 +78,16 @@ class reconstruction_model(pl.LightningModule):
 
 
 def main():
-    pl_model = reconstruction_model.load_from_checkpoint("lightning_logs/version_13/checkpoints/epoch=1000-step=120120.ckpt")
+    pl_model = reconstruction_model()
 
     train_dataset = ObjectDataset(chunk_size=50, train=True)
-    test_dataset = ObjectDataset(chunk_size=50, train=False)
     train_loader = DataLoader(train_dataset, batch_size=opt.batchSize, num_workers=4, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=opt.batchSize, num_workers=4)
 
     trainer = pl.Trainer(max_epochs=10, accelerator="gpu")
     trainer.fit(model=pl_model, train_dataloaders=train_loader)
+
+    test_dataset = ObjectDataset(chunk_size=50, train=False)
+    test_loader = DataLoader(test_dataset, batch_size=opt.batchSize, num_workers=4)
 
     trainer.test(model=pl_model, dataloaders=test_loader)
 

@@ -19,7 +19,7 @@ def main():
 
     outs = trainer.predict(model=pl_model, dataloaders=test_loader)
     for i, (a, b, c) in enumerate(outs):
-        for j in range(opt.batchSize):
+        for j in range(len(a)):
             np.save(f"outputs/image_{i*opt.batchSize+j+1}", a[j].numpy())
             np.save(f"outputs/xyz_{i*opt.batchSize+j+1}", b[j].numpy())
             np.save(f"outputs/ml_{i*opt.batchSize+j+1}", c[j].numpy())
