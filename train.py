@@ -59,8 +59,8 @@ class reconstruction_model(pl.LightningModule):
         images, depths, trans, masks = batch
         point_cloud = self.model(images)
         loss1, loss2 = model_loss(opt, point_cloud, (depths, masks), trans)
-        self.log("l1_loss", loss1, prog_bar=True)
-        self.log("bce_loss", loss2, prog_bar=True)
+        self.log("l1_loss", loss1, prog_bar=True, on_epoch=True)
+        self.log("bce_loss", loss2, prog_bar=True, on_epoch=True)
         loss = loss1 + opt.Lambda * loss2
         return loss
 
@@ -68,20 +68,29 @@ class reconstruction_model(pl.LightningModule):
         optimizer = optim.Adam(self.parameters(), lr=1e-3)
         return optimizer
 
+    def predict_step(self, batch, batch_idx, dataloader_idx: int = 0):
+        images, depths, trans, masks = batch
+        a, b = self.model(images)
+        return images, a, b
+
+    def test_step(self, batch, batch_idx):
+        return self.training_step(batch, batch_idx)
+
 
 def main():
-    pl_model = reconstruction_model()
+    pl_model = reconstruction_model.load_from_checkpoint("lightning_logs/version_13/checkpoints/epoch=1000-step=120120.ckpt")
 
     train_dataset = ObjectDataset(chunk_size=50, train=True)
     test_dataset = ObjectDataset(chunk_size=50, train=False)
     train_loader = DataLoader(train_dataset, batch_size=opt.batchSize, num_workers=4, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=opt.batchSize, num_workers=4)
 
-    trainer = pl.Trainer(max_epochs=10000, accelerator="gpu")
+    trainer = pl.Trainer(max_epochs=10, accelerator="gpu")
     trainer.fit(model=pl_model, train_dataloaders=train_loader)
 
     trainer.test(model=pl_model, dataloaders=test_loader)
 
 
 if __name__ == '__main__':
+    pl.seed_everything(422, workers=True)
     main()
