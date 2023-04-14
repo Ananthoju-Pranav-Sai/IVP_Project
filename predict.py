@@ -3,9 +3,6 @@ from dataset import ObjectDataset
 from torch.utils.data import DataLoader
 import lightning.pytorch as pl
 import numpy as np
-import os
-
-os.path.join("drive/MyDrive/IVP_Project/data")
 
 
 opt = opt_class()

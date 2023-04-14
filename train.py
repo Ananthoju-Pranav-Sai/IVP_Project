@@ -8,9 +8,6 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import torch.optim as optim
 import numpy as np
-import os
-
-os.path.join("drive/MyDrive/IVP_Project/data")
 
 
 class opt_class:
