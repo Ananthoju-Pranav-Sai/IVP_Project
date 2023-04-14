@@ -2,6 +2,9 @@ import numpy as np
 import torch
 import scipy.io
 from torch.utils.data import Dataset
+import os
+
+os.path.join("drive/MyDrive/IVP_Project/data")
 
 
 class ObjectDataset(Dataset):
