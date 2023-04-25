@@ -70,7 +70,7 @@ class reconstruction_model(pl.LightningModule):
 
     def predict_step(self, batch, batch_idx, dataloader_idx: int = 0):
         images, depths, trans, masks = batch
-        a, b = self.model(images)
+        a, b = self.model(images, self.device)
         return images, a, b
 
     def test_step(self, batch, batch_idx):
